@@ -1,0 +1,36 @@
+ASlo                    Regression of a Heuristic Method for
+                        Identification of Low Outliers in Texas Annual
+                        Peak Streamflow
+BLlo                    Barnett and Lewis Test Adjusted for Low
+                        Outliers
+CondMomsChi2            Conditional Moments: N.B. Moments employ only
+                        observations above Xsi
+CondMomsZ               Conditional Moments: N.B. Moments employ only
+                        observations above Xsi
+CritK                   Compute Critical Value of Grubbs-Beck statistic
+                        (eta) Given Probability
+EMS                     Expected values of M and S
+GGBK                    Cohn Approximation for New Generalized
+                        Grubbs-Beck Critical Values for 10-Percent Test
+MGBT                    Multiple Grubbs-Beck Test (MGBT) for Low
+                        Outliers
+MGBT-package            Multiple Grubbs-Beck Low-Outlier Test
+RSlo                    Rosner RST Test Adjusted for Low Outliers
+RthOrderPValueOrthoT    P-value for the Rth Order Statistic
+V                       Covariance matrix of M and S-squared
+VMS                     Covariance matrix of M and S
+critK10                 Single Grubbs-Beck Critical Values for
+                        10-percent Test as used in Bulletin 17B
+gtmoms                  Moments of Observations Above the Threshold
+makeWaterYear           Make Water Year Column
+peta                    Probability of Eta
+plotFFQevol             Plot Flood-Frequency in Time
+plotPeaks               Plot Peak Streamflows with Emphasis on Peak
+                        Discharge Qualification Codes
+plotPeaks_batch         Plot for More than One Streamgage that Peak
+                        Streamflows with Emphasis on Peak Discharge
+                        Qualification Codes
+readNWISwatstore        Read NWIS WATSTORE-Formatted Period of Record
+                        Peak Streamflows and Other Germane Operations
+splitPeakCodes          Split the Peak Discharge Qualifications Codes
+                        into Separate Columns
