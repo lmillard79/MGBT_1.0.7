@@ -13,6 +13,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import logging
+import time
+from datetime import datetime
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import warnings
+import traceback
 
 # Add pymgbt to path
 repo_root = Path(__file__).parent.parent
@@ -20,9 +25,19 @@ sys.path.insert(0, str(repo_root / 'pymgbt'))
 
 from pymgbt.core.mgbt_corrected import MGBT as MGBT_corrected
 from pymgbt.core.mgbt import MGBT as MGBT_original
+from pymgbt.core.mgbt_optimized import MGBT as MGBT_optimized
 
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+# Configure comprehensive logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 logger = logging.getLogger(__name__)
+
+# Capture warnings in logging
+logging.captureWarnings(True)
+warnings_logger = logging.getLogger('py.warnings')
 
 
 def run_r_mgbt(flows: np.ndarray, alpha1: float = 0.01, alpha10: float = 0.10):
@@ -92,9 +107,10 @@ def run_r_mgbt(flows: np.ndarray, alpha1: float = 0.01, alpha10: float = 0.10):
 def run_python_mgbt(flows: np.ndarray, 
                     alpha1: float = 0.01, 
                     alpha10: float = 0.10,
-                    use_corrected: bool = True):
+                    implementation: str = 'optimized',
+                    station_id: str = 'unknown'):
     """
-    Run Python MGBT implementation.
+    Run Python MGBT implementation with detailed timing and logging.
     
     Parameters
     ----------
@@ -104,19 +120,37 @@ def run_python_mgbt(flows: np.ndarray,
         Primary alpha
     alpha10 : float
         Secondary alpha
-    use_corrected : bool
-        Use corrected implementation
+    implementation : str
+        Which implementation to use: 'optimized', 'corrected', or 'original'
+    station_id : str
+        Station identifier for logging
         
     Returns
     -------
     dict
-        Python MGBT results
+        Python MGBT results with timing information
     """
+    start_time = time.perf_counter()
+    logger.debug(f"[{station_id}] Starting Python MGBT ({implementation}): {len(flows)} flows, alpha1={alpha1}, alpha10={alpha10}")
+    
     try:
-        if use_corrected:
-            result = MGBT_corrected(flows, alpha1=alpha1, alpha10=alpha10)
-        else:
-            result = MGBT_original(flows, alpha=alpha1)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            
+            if implementation == 'optimized':
+                result = MGBT_optimized(flows, alpha1=alpha1, alpha10=alpha10, use_cache=True, early_stop=True)
+            elif implementation == 'corrected':
+                result = MGBT_corrected(flows, alpha1=alpha1, alpha10=alpha10)
+            else:
+                result = MGBT_original(flows, alpha=alpha1)
+            
+            # Log any warnings
+            if w:
+                for warning in w:
+                    logger.warning(f"[{station_id}] {warning.category.__name__}: {warning.message}")
+        
+        elapsed = time.perf_counter() - start_time
+        logger.debug(f"[{station_id}] Python MGBT completed in {elapsed:.4f}s: {result.klow if hasattr(result, 'klow') else result.n_outliers} outliers")
         
         return {
             'klow': result.klow if hasattr(result, 'klow') else result.n_outliers,
@@ -124,14 +158,18 @@ def run_python_mgbt(flows: np.ndarray,
             'pvalues': result.p_values,
             'test_stats': result.test_statistics,
             'success': True,
-            'error': None
+            'error': None,
+            'elapsed_time': elapsed
         }
         
     except Exception as e:
-        logger.error(f"Python MGBT failed: {e}")
+        elapsed = time.perf_counter() - start_time
+        logger.error(f"[{station_id}] Python MGBT failed after {elapsed:.4f}s: {e}")
+        logger.debug(f"[{station_id}] Traceback:\n{traceback.format_exc()}")
         return {
             'success': False,
-            'error': str(e)
+            'error': str(e),
+            'elapsed_time': elapsed
         }
 
 
@@ -197,7 +235,7 @@ def compare_results(station_id: str,
 
 def test_single_station(station_dir: Path, use_r: bool = False) -> dict:
     """
-    Test MGBT on a single station.
+    Test MGBT on a single station with detailed logging.
     
     Parameters
     ----------
@@ -209,69 +247,91 @@ def test_single_station(station_dir: Path, use_r: bool = False) -> dict:
     Returns
     -------
     dict
-        Test results
+        Test results with timing information
     """
     station_id = station_dir.name
+    test_start = time.perf_counter()
+    
+    logger.info(f"{'='*60}")
+    logger.info(f"Testing Station: {station_id}")
+    logger.info(f"{'='*60}")
     
     # Load data
     flows_file = station_dir / 'flows.txt'
     metadata_file = station_dir / 'metadata.txt'
     
     if not flows_file.exists():
-        logger.error(f"Flows file not found for {station_id}")
+        logger.error(f"[{station_id}] Flows file not found: {flows_file}")
         return None
     
+    logger.debug(f"[{station_id}] Loading flow data from {flows_file}")
     flows = np.loadtxt(flows_file)
+    logger.debug(f"[{station_id}] Loaded {len(flows)} flow values")
+    logger.debug(f"[{station_id}] Flow range: {flows.min():.2f} to {flows.max():.2f}")
     
     # Read expected censored count from metadata
     expected_censored = 0
     if metadata_file.exists():
+        logger.debug(f"[{station_id}] Reading metadata from {metadata_file}")
         with open(metadata_file, 'r') as f:
             for line in f:
                 if 'Censored Flows:' in line:
                     expected_censored = int(line.split(':')[1].strip())
+                    logger.debug(f"[{station_id}] Expected censored flows: {expected_censored}")
                     break
     
-    logger.info(f"\nTesting {station_id}: {len(flows)} flows, {expected_censored} expected censored")
+    logger.info(f"[{station_id}] Dataset: {len(flows)} flows, {expected_censored} expected censored")
     
-    # Run Python MGBT (corrected version)
-    py_result = run_python_mgbt(flows, use_corrected=True)
+    # Run Python MGBT (optimized version by default)
+    logger.info(f"[{station_id}] Running Python MGBT (optimized implementation)...")
+    py_result = run_python_mgbt(flows, implementation='optimized', station_id=station_id)
     
     if py_result['success']:
-        logger.info(f"  Python: {py_result['klow']} outliers, threshold={py_result['threshold']}")
+        logger.info(f"[{station_id}] Python Result: {py_result['klow']} outliers detected")
+        logger.info(f"[{station_id}] Python Threshold: {py_result['threshold']}")
+        logger.info(f"[{station_id}] Python Time: {py_result['elapsed_time']:.4f}s")
     else:
-        logger.error(f"  Python failed: {py_result['error']}")
+        logger.error(f"[{station_id}] Python MGBT FAILED: {py_result['error']}")
     
     # Run R MGBT if requested
     r_result = None
     if use_r:
+        logger.info(f"[{station_id}] Running R MGBT for comparison...")
         r_result = run_r_mgbt(flows)
         if r_result['success']:
-            logger.info(f"  R:      {r_result['klow']} outliers, threshold={r_result['threshold']}")
+            logger.info(f"[{station_id}] R Result: {r_result['klow']} outliers, threshold={r_result['threshold']}")
         else:
-            logger.warning(f"  R not available: {r_result['error']}")
+            logger.warning(f"[{station_id}] R MGBT not available: {r_result['error']}")
     
     # Compare results
     comparison = compare_results(station_id, flows, expected_censored, r_result, py_result)
     
-    # Report
+    # Add timing info
+    comparison['test_time'] = time.perf_counter() - test_start
+    if py_result['success']:
+        comparison['py_time'] = py_result['elapsed_time']
+    
+    # Report comparison
+    logger.info(f"[{station_id}] Comparison Results:")
     if comparison['match_expected']:
-        logger.info(f"  ✓ Python matches expected censored count")
+        logger.info(f"[{station_id}]   ✓ Python matches expected censored count ({expected_censored})")
     else:
-        logger.warning(f"  ✗ Python: {py_result['klow']} vs Expected: {expected_censored}")
+        logger.warning(f"[{station_id}]   ✗ MISMATCH: Python={py_result['klow']}, Expected={expected_censored}")
     
     if r_result and r_result['success']:
         if comparison['match']:
-            logger.info(f"  ✓ Python matches R")
+            logger.info(f"[{station_id}]   ✓ Python matches R implementation")
         else:
-            logger.warning(f"  ✗ Python vs R mismatch")
+            logger.warning(f"[{station_id}]   ✗ Python vs R mismatch: Python={py_result['klow']}, R={r_result['klow']}")
+    
+    logger.info(f"[{station_id}] Total test time: {comparison['test_time']:.4f}s")
     
     return comparison
 
 
-def test_all_stations(validation_dir: Path, use_r: bool = False) -> pd.DataFrame:
+def test_all_stations(validation_dir: Path, use_r: bool = False, parallel: bool = False, max_workers: int = None) -> pd.DataFrame:
     """
-    Test MGBT on all validation stations.
+    Test MGBT on all validation stations with optional parallelization.
     
     Parameters
     ----------
@@ -279,32 +339,80 @@ def test_all_stations(validation_dir: Path, use_r: bool = False) -> pd.DataFrame
         Directory containing validation data
     use_r : bool
         Whether to run R comparison
+    parallel : bool
+        Use parallel processing (Note: R comparison not supported in parallel mode)
+    max_workers : int, optional
+        Maximum number of parallel workers (defaults to CPU count)
         
     Returns
     -------
     pd.DataFrame
         Comparison results for all stations
     """
+    overall_start = time.perf_counter()
     results = []
     
     # Get all station directories
     station_dirs = [d for d in validation_dir.iterdir() if d.is_dir()]
     station_dirs = sorted(station_dirs, key=lambda x: x.name)
     
-    logger.info(f"Testing {len(station_dirs)} stations")
-    logger.info("=" * 80)
+    logger.info(f"{'#'*80}")
+    logger.info(f"MGBT VALIDATION TEST SUITE")
+    logger.info(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"{'#'*80}")
+    logger.info(f"Total stations to test: {len(station_dirs)}")
+    logger.info(f"Parallel processing: {'ENABLED' if parallel else 'DISABLED'}")
+    if parallel:
+        logger.info(f"Max workers: {max_workers if max_workers else 'CPU count'}")
+    logger.info(f"R comparison: {'ENABLED' if use_r else 'DISABLED'}")
+    logger.info(f"")
     
-    for station_dir in station_dirs:
-        comparison = test_single_station(station_dir, use_r=use_r)
-        if comparison:
-            results.append(comparison)
+    if parallel and not use_r:
+        # Parallel processing (R not supported in parallel)
+        logger.info("Running tests in parallel...")
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_station = {}
+            for station_dir in station_dirs:
+                future = executor.submit(test_single_station, station_dir, False)
+                future_to_station[future] = station_dir.name
+            
+            # Collect results as they complete
+            completed = 0
+            for future in as_completed(future_to_station):
+                station_id = future_to_station[future]
+                try:
+                    comparison = future.result()
+                    if comparison:
+                        results.append(comparison)
+                    completed += 1
+                    logger.info(f"Progress: {completed}/{len(station_dirs)} stations completed")
+                except Exception as e:
+                    logger.error(f"Station {station_id} failed: {e}")
+                    logger.debug(traceback.format_exc())
+    else:
+        # Sequential processing
+        logger.info("Running tests sequentially...")
+        for idx, station_dir in enumerate(station_dirs, 1):
+            logger.info(f"\nProgress: {idx}/{len(station_dirs)}")
+            comparison = test_single_station(station_dir, use_r=use_r)
+            if comparison:
+                results.append(comparison)
+    
+    overall_elapsed = time.perf_counter() - overall_start
+    
+    logger.info(f"\n{'#'*80}")
+    logger.info(f"ALL TESTS COMPLETED")
+    logger.info(f"Total time: {overall_elapsed:.2f}s ({overall_elapsed/60:.2f} minutes)")
+    logger.info(f"Average time per station: {overall_elapsed/len(station_dirs):.2f}s")
+    logger.info(f"{'#'*80}\n")
     
     return pd.DataFrame(results)
 
 
 def generate_report(results_df: pd.DataFrame, output_dir: Path):
     """
-    Generate detailed comparison report.
+    Generate detailed comparison report with performance metrics.
     
     Parameters
     ----------
@@ -315,22 +423,42 @@ def generate_report(results_df: pd.DataFrame, output_dir: Path):
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     
+    logger.info("Generating comprehensive test report...")
+    
     # Save full results
     results_df.to_csv(output_dir / 'mgbt_comparison_results.csv', index=False)
-    logger.info(f"\nSaved results to {output_dir / 'mgbt_comparison_results.csv'}")
+    logger.info(f"Saved detailed results to {output_dir / 'mgbt_comparison_results.csv'}")
     
     # Generate summary statistics
     total = len(results_df)
     py_matches_expected = results_df['match_expected'].sum()
     
+    # Performance statistics
+    if 'py_time' in results_df.columns:
+        avg_time = results_df['py_time'].mean()
+        min_time = results_df['py_time'].min()
+        max_time = results_df['py_time'].max()
+        total_py_time = results_df['py_time'].sum()
+    else:
+        avg_time = min_time = max_time = total_py_time = 0
+    
     summary = f"""
 MGBT Validation Summary
 {'=' * 80}
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-Total Stations Tested: {total}
-
-Python Implementation:
+Test Statistics:
+  Total Stations Tested: {total}
+  
+Python Implementation Results:
   Matches Expected Censored Count: {py_matches_expected}/{total} ({100*py_matches_expected/total:.1f}%)
+  Success Rate: {100*py_matches_expected/total:.1f}%
+
+Performance Metrics:
+  Total Processing Time: {total_py_time:.2f}s
+  Average Time per Station: {avg_time:.4f}s
+  Fastest Station: {min_time:.4f}s
+  Slowest Station: {max_time:.4f}s
   
 Stations with Discrepancies:
 """
@@ -363,38 +491,101 @@ R vs Python Comparison:
     logger.info(f"Saved summary to {output_dir / 'mgbt_comparison_summary.txt'}")
 
 
-def main():
-    """Main execution function."""
+def main(parallel: bool = True, max_workers: int = None):
+    """
+    Main execution function with performance optimization.
+    
+    Parameters
+    ----------
+    parallel : bool
+        Enable parallel processing for faster execution
+    max_workers : int, optional
+        Maximum number of parallel workers
+    """
     # Set up paths
     validation_dir = repo_root / 'data' / 'validation'
     output_dir = repo_root / 'data' / 'test_results'
+    
+    # Set up log file
+    log_file = output_dir / f'mgbt_test_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Add file handler for detailed logging
+    file_handler = logging.FileHandler(log_file, mode='w')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    ))
+    logging.getLogger().addHandler(file_handler)
+    
+    logger.info(f"Detailed log file: {log_file}")
     
     if not validation_dir.exists():
         logger.error(f"Validation directory not found: {validation_dir}")
         logger.info("Please run extract_validation_data.py first")
         return
     
-    # Test all stations
-    logger.info("Starting MGBT validation tests")
-    logger.info(f"Validation data: {validation_dir}")
+    logger.info(f"Validation data directory: {validation_dir}")
+    logger.info(f"Output directory: {output_dir}")
     
     # Try to use R if available, but don't require it
     use_r = False
     try:
         import rpy2
         use_r = True
-        logger.info("R comparison enabled (rpy2 available)")
+        logger.info("R comparison: AVAILABLE (rpy2 installed)")
+        if parallel:
+            logger.warning("R comparison not supported in parallel mode - will run sequentially")
+            parallel = False
     except ImportError:
-        logger.info("R comparison disabled (rpy2 not available)")
+        logger.info("R comparison: NOT AVAILABLE (rpy2 not installed)")
     
-    results_df = test_all_stations(validation_dir, use_r=use_r)
+    # Run tests
+    results_df = test_all_stations(validation_dir, use_r=use_r, parallel=parallel, max_workers=max_workers)
     
     # Generate report
-    logger.info("\n" + "=" * 80)
     generate_report(results_df, output_dir)
     
-    logger.info("\nValidation testing complete")
+    logger.info(f"\nLog file saved to: {log_file}")
+    logger.info("Validation testing complete")
 
 
 if __name__ == '__main__':
-    main()
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description='Test MGBT Python implementation against validation data',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        '--parallel', 
+        action='store_true',
+        default=True,
+        help='Enable parallel processing for faster execution'
+    )
+    parser.add_argument(
+        '--no-parallel',
+        dest='parallel',
+        action='store_false',
+        help='Disable parallel processing (run sequentially)'
+    )
+    parser.add_argument(
+        '--workers',
+        type=int,
+        default=None,
+        help='Maximum number of parallel workers (default: CPU count)'
+    )
+    parser.add_argument(
+        '--log-level',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+        default='INFO',
+        help='Console logging level'
+    )
+    
+    args = parser.parse_args()
+    
+    # Set console log level (file will still be DEBUG)
+    logging.getLogger().setLevel(getattr(logging, args.log_level))
+    
+    main(parallel=args.parallel, max_workers=args.workers)
