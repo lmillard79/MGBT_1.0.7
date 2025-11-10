@@ -1,0 +1,55 @@
+station_id,n_flows,flike_censored,python_censored,r_censored,python_threshold,r_threshold,py_matches_flike,r_matches_flike,py_matches_r,python_success,r_success
+416040 Model,29,16,0,0.0,,,False,False,True,True,True
+416040,28,16,0,0.0,,,False,False,True,True,True
+Out 416002,42,0,1,1.0,34.62,34.62,False,False,True,True,True
+Out 416002_Model,43,0,2,2.0,145.49,145.49,False,False,True,True,True
+Out 416012,44,0,0,0.0,,,True,True,True,True,True
+Out 416012_Model,45,0,3,3.0,122.38,122.38,False,False,True,True,True
+Out,50,5,19,16.0,79.83,54.06,False,False,False,True,True
+Out_416201A,44,0,24,22.0,745.29,624.09,False,False,False,True,True
+Out_416201B,27,0,13,11.0,575.83,366.7,False,False,False,True,True
+Out_416204A,24,0,2,2.0,13.18,13.18,False,False,True,True,True
+Out_416204A_Model,25,0,11,11.0,129.08,129.08,False,False,True,True,True
+Out_41620B_Model,28,0,8,1.0,582.04,142.32,False,False,False,True,True
+Out_416402C,43,0,0,17.0,,61.54,True,False,False,True,True
+Out_416415_Model,38,0,0,0.0,,,True,True,True,True,True
+Out_416415A,37,0,6,6.0,32.4,32.4,False,False,True,True,True
+Out_417205A,18,0,0,0.0,,,True,True,True,True,True
+Out_417205A_Model,20,0,5,3.0,52.32,20.47,False,False,False,True,True
+Out_422202B,72,2,12,12.0,15.68,15.68,False,False,True,True,True
+Out_422202B_Model,68,8,11,10.0,15.96,12.09,False,False,False,True,True
+Out_422308C,50,0,5,5.0,32.08,32.08,False,False,True,True,True
+Out_422308C_Model,51,0,0,0.0,,,True,True,True,True,True
+Out_422310C,63,0,0,0.0,,,True,True,True,True,True
+Out_422310C_Model,65,0,19,19.0,62.47,62.47,False,False,True,True,True
+Out_422313B,51,0,7,7.0,6.07,6.07,False,False,True,True,True
+Out_422313B_Model,52,0,17,13.0,16.93,8.63,False,False,False,True,True
+Out_422316A,53,1,5,4.0,29.74,19.99,False,False,False,True,True
+Out_422316A_Model,55,0,0,0.0,,,True,True,True,True,True
+Out_422319B,54,1,0,19.0,,26.87,False,False,False,True,True
+Out_422319B_Model,55,1,1,1.0,2.22,2.22,True,True,True,True,True
+Out_422323A,63,0,20,11.0,97.21,42.65,False,False,False,True,True
+Out_422323A_Model,64,0,0,32.0,,260.33,True,False,False,True,True
+Out_422325A,58,0,2,2.0,22.31,22.31,False,False,True,True,True
+Out_422325A_Model,59,0,0,17.0,,148.85,True,False,False,True,True
+Out_422326A,54,0,0,0.0,,,True,True,True,True,True
+Out_422326A_Model,56,0,19,19.0,21.36,21.36,False,False,True,True,True
+Out_422332B,32,0,0,0.0,,,True,True,True,True,True
+Out_422332B_Model,33,0,9,7.0,15.28,6.22,False,False,False,True,True
+Out_422333A,54,1,5,5.0,32.21,32.21,False,False,True,True,True
+Out_422333A_Model,56,0,0,0.0,,,True,True,True,True,True
+Out_422336A,51,0,1,1.0,4.91,4.91,False,False,True,True,True
+Out_422336A_Model,53,0,0,0.0,,,True,True,True,True,True
+Out_422343A,19,2,0,0.0,,,False,False,True,True,True
+Out_422343A_Model,18,4,0,0.0,,,False,False,True,True,True
+Out_422344A,17,0,1,1.0,67.54,67.54,False,False,True,True,True
+Out_422344A_Model,18,0,0,0.0,,,True,True,True,True,True
+Out_422345A,43,2,0,0.0,,,False,False,True,True,True
+Out_422345A_Model,47,0,0,0.0,,,True,True,True,True,True
+Out_422347B,33,3,0,0.0,,,False,False,True,True,True
+Out_422347B_Model,37,0,0,0.0,,,True,True,True,True,True
+Out_422350A,43,0,10,10.0,19.33,19.33,False,False,True,True,True
+Out_422350A_Model,45,0,30,21.0,282.86,161.65,False,False,False,True,True
+Out_422394A,51,0,0,0.0,,,True,True,True,True,True
+Out_422394A_Model,52,0,10,10.0,10.75,10.75,False,False,True,True,True
+Pars,0,0,0,,,,True,False,False,True,False

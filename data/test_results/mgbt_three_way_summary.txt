@@ -1,0 +1,287 @@
+============================================================
+MGBT Three-Way Comparison Summary
+============================================================
+
+Total stations: 54
+
+Python MGBT:
+  Successful: 54/54
+  Matches FLIKE: 19/54 (35.2%)
+
+R MGBT:
+  Successful: 53/54
+  Matches FLIKE: 15/53 (28.3%)
+
+Stations with discrepancies:
+------------------------------------------------------------
+
+Station 416040 Model:
+  Flows: 29
+  FLIKE: 16
+  Python: 0
+  R: 0.0
+
+Station 416040:
+  Flows: 28
+  FLIKE: 16
+  Python: 0
+  R: 0.0
+
+Station Out 416002:
+  Flows: 42
+  FLIKE: 0
+  Python: 1
+  R: 1.0
+
+Station Out 416002_Model:
+  Flows: 43
+  FLIKE: 0
+  Python: 2
+  R: 2.0
+
+Station Out 416012_Model:
+  Flows: 45
+  FLIKE: 0
+  Python: 3
+  R: 3.0
+
+Station Out:
+  Flows: 50
+  FLIKE: 5
+  Python: 19
+  R: 16.0
+
+Station Out_416201A:
+  Flows: 44
+  FLIKE: 0
+  Python: 24
+  R: 22.0
+
+Station Out_416201B:
+  Flows: 27
+  FLIKE: 0
+  Python: 13
+  R: 11.0
+
+Station Out_416204A:
+  Flows: 24
+  FLIKE: 0
+  Python: 2
+  R: 2.0
+
+Station Out_416204A_Model:
+  Flows: 25
+  FLIKE: 0
+  Python: 11
+  R: 11.0
+
+Station Out_41620B_Model:
+  Flows: 28
+  FLIKE: 0
+  Python: 8
+  R: 1.0
+
+Station Out_416415A:
+  Flows: 37
+  FLIKE: 0
+  Python: 6
+  R: 6.0
+
+Station Out_417205A_Model:
+  Flows: 20
+  FLIKE: 0
+  Python: 5
+  R: 3.0
+
+Station Out_422202B:
+  Flows: 72
+  FLIKE: 2
+  Python: 12
+  R: 12.0
+
+Station Out_422202B_Model:
+  Flows: 68
+  FLIKE: 8
+  Python: 11
+  R: 10.0
+
+Station Out_422308C:
+  Flows: 50
+  FLIKE: 0
+  Python: 5
+  R: 5.0
+
+Station Out_422310C_Model:
+  Flows: 65
+  FLIKE: 0
+  Python: 19
+  R: 19.0
+
+Station Out_422313B:
+  Flows: 51
+  FLIKE: 0
+  Python: 7
+  R: 7.0
+
+Station Out_422313B_Model:
+  Flows: 52
+  FLIKE: 0
+  Python: 17
+  R: 13.0
+
+Station Out_422316A:
+  Flows: 53
+  FLIKE: 1
+  Python: 5
+  R: 4.0
+
+Station Out_422319B:
+  Flows: 54
+  FLIKE: 1
+  Python: 0
+  R: 19.0
+
+Station Out_422323A:
+  Flows: 63
+  FLIKE: 0
+  Python: 20
+  R: 11.0
+
+Station Out_422325A:
+  Flows: 58
+  FLIKE: 0
+  Python: 2
+  R: 2.0
+
+Station Out_422326A_Model:
+  Flows: 56
+  FLIKE: 0
+  Python: 19
+  R: 19.0
+
+Station Out_422332B_Model:
+  Flows: 33
+  FLIKE: 0
+  Python: 9
+  R: 7.0
+
+Station Out_422333A:
+  Flows: 54
+  FLIKE: 1
+  Python: 5
+  R: 5.0
+
+Station Out_422336A:
+  Flows: 51
+  FLIKE: 0
+  Python: 1
+  R: 1.0
+
+Station Out_422343A:
+  Flows: 19
+  FLIKE: 2
+  Python: 0
+  R: 0.0
+
+Station Out_422343A_Model:
+  Flows: 18
+  FLIKE: 4
+  Python: 0
+  R: 0.0
+
+Station Out_422344A:
+  Flows: 17
+  FLIKE: 0
+  Python: 1
+  R: 1.0
+
+Station Out_422345A:
+  Flows: 43
+  FLIKE: 2
+  Python: 0
+  R: 0.0
+
+Station Out_422347B:
+  Flows: 33
+  FLIKE: 3
+  Python: 0
+  R: 0.0
+
+Station Out_422350A:
+  Flows: 43
+  FLIKE: 0
+  Python: 10
+  R: 10.0
+
+Station Out_422350A_Model:
+  Flows: 45
+  FLIKE: 0
+  Python: 30
+  R: 21.0
+
+Station Out_422394A_Model:
+  Flows: 52
+  FLIKE: 0
+  Python: 10
+  R: 10.0
+
+============================================================
+
+Detailed Results:
+------------------------------------------------------------
+Station    Flows  FLIKE  Python R      Py=FL  R=FL   Py=R  
+------------------------------------------------------------
+416040 Model 29     16     N/A    N/A    N      N      Y     
+416040     28     16     N/A    N/A    N      N      Y     
+Out 416002 42     0      1      1.0    N      N      Y     
+Out 416002_Model 43     0      2      2.0    N      N      Y     
+Out 416012 44     0      N/A    N/A    Y      Y      Y     
+Out 416012_Model 45     0      3      3.0    N      N      Y     
+Out        50     5      19     16.0   N      N      N     
+Out_416201A 44     0      24     22.0   N      N      N     
+Out_416201B 27     0      13     11.0   N      N      N     
+Out_416204A 24     0      2      2.0    N      N      Y     
+Out_416204A_Model 25     0      11     11.0   N      N      Y     
+Out_41620B_Model 28     0      8      1.0    N      N      N     
+Out_416402C 43     0      N/A    17.0   Y      N      N     
+Out_416415_Model 38     0      N/A    N/A    Y      Y      Y     
+Out_416415A 37     0      6      6.0    N      N      Y     
+Out_417205A 18     0      N/A    N/A    Y      Y      Y     
+Out_417205A_Model 20     0      5      3.0    N      N      N     
+Out_422202B 72     2      12     12.0   N      N      Y     
+Out_422202B_Model 68     8      11     10.0   N      N      N     
+Out_422308C 50     0      5      5.0    N      N      Y     
+Out_422308C_Model 51     0      N/A    N/A    Y      Y      Y     
+Out_422310C 63     0      N/A    N/A    Y      Y      Y     
+Out_422310C_Model 65     0      19     19.0   N      N      Y     
+Out_422313B 51     0      7      7.0    N      N      Y     
+Out_422313B_Model 52     0      17     13.0   N      N      N     
+Out_422316A 53     1      5      4.0    N      N      N     
+Out_422316A_Model 55     0      N/A    N/A    Y      Y      Y     
+Out_422319B 54     1      N/A    19.0   N      N      N     
+Out_422319B_Model 55     1      1      1.0    Y      Y      Y     
+Out_422323A 63     0      20     11.0   N      N      N     
+Out_422323A_Model 64     0      N/A    32.0   Y      N      N     
+Out_422325A 58     0      2      2.0    N      N      Y     
+Out_422325A_Model 59     0      N/A    17.0   Y      N      N     
+Out_422326A 54     0      N/A    N/A    Y      Y      Y     
+Out_422326A_Model 56     0      19     19.0   N      N      Y     
+Out_422332B 32     0      N/A    N/A    Y      Y      Y     
+Out_422332B_Model 33     0      9      7.0    N      N      N     
+Out_422333A 54     1      5      5.0    N      N      Y     
+Out_422333A_Model 56     0      N/A    N/A    Y      Y      Y     
+Out_422336A 51     0      1      1.0    N      N      Y     
+Out_422336A_Model 53     0      N/A    N/A    Y      Y      Y     
+Out_422343A 19     2      N/A    N/A    N      N      Y     
+Out_422343A_Model 18     4      N/A    N/A    N      N      Y     
+Out_422344A 17     0      1      1.0    N      N      Y     
+Out_422344A_Model 18     0      N/A    N/A    Y      Y      Y     
+Out_422345A 43     2      N/A    N/A    N      N      Y     
+Out_422345A_Model 47     0      N/A    N/A    Y      Y      Y     
+Out_422347B 33     3      N/A    N/A    N      N      Y     
+Out_422347B_Model 37     0      N/A    N/A    Y      Y      Y     
+Out_422350A 43     0      10     10.0   N      N      Y     
+Out_422350A_Model 45     0      30     21.0   N      N      N     
+Out_422394A 51     0      N/A    N/A    Y      Y      Y     
+Out_422394A_Model 52     0      10     10.0   N      N      Y     
+Pars       0      0      N/A    nan    Y      N      N     
