@@ -10,11 +10,19 @@ Generates a comprehensive comparison table for all stations.
 """
 
 import sys
+import os
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import logging
 from typing import Dict, Optional
+
+# Configure R environment for rpy2
+R_HOME = r"C:\Program Files\R\R-4.5.1"
+os.environ['R_HOME'] = R_HOME
+R_BIN = os.path.join(R_HOME, 'bin', 'x64')
+if R_BIN not in os.environ['PATH']:
+    os.environ['PATH'] = R_BIN + os.pathsep + os.environ['PATH']
 
 # Add pymgbt to path
 repo_root = Path(__file__).parent.parent
@@ -127,24 +135,26 @@ def run_r_mgbt(flows: np.ndarray) -> Dict:
         import rpy2.robjects as ro
         from rpy2.robjects import numpy2ri
         from rpy2.robjects.packages import importr
-        
-        # Activate automatic numpy conversion
-        numpy2ri.activate()
+        from rpy2.robjects import conversion
         
         # Import R MGBT package
         mgbt_r = importr('MGBT')
         
-        # Convert flows to R vector
-        r_flows = ro.FloatVector(flows)
-        
-        # Run MGBT
-        result = mgbt_r.MGBT(r_flows, alpha1=0.01, alpha10=0.10)
-        
-        # Extract results
-        klow = int(result.rx2('klow')[0])
-        threshold = float(result.rx2('LOThresh')[0]) if klow > 0 else None
-        
-        numpy2ri.deactivate()
+        # Use modern conversion context instead of deprecated activate/deactivate
+        with conversion.localconverter(ro.default_converter + numpy2ri.converter):
+            # Convert flows to R vector
+            r_flows = ro.FloatVector(flows)
+            
+            # Run MGBT (uses default alpha values)
+            result = mgbt_r.MGBT(r_flows)
+            
+            # Extract results from NamedList
+            names = list(result.names())
+            klow_idx = names.index('klow')
+            thresh_idx = names.index('LOThresh')
+            
+            klow = int(result[klow_idx][0])
+            threshold = float(result[thresh_idx][0]) if klow > 0 else None
         
         return {
             'success': True,
@@ -160,6 +170,7 @@ def run_r_mgbt(flows: np.ndarray) -> Dict:
         }
     except Exception as e:
         logger.error(f"R MGBT failed: {e}")
+        logger.error(f"Traceback: ", exc_info=True)
         return {
             'success': False,
             'n_censored': None,
