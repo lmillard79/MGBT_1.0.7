@@ -1,0 +1,6 @@
+Station ID: Out
+Flood Model: Log Pearson III
+Zero Flow Threshold: 0.0
+Gauged Flows: 50
+Censored Flows: 5
+Expected Censored Count (R MGBT): 5

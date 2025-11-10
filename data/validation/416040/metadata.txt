@@ -1,0 +1,6 @@
+Station ID: 416040
+Flood Model: Log Pearson III
+Zero Flow Threshold: 1.0
+Gauged Flows: 28
+Censored Flows: 16
+Expected Censored Count (R MGBT): 16

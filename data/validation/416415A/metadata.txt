@@ -1,0 +1,6 @@
+Station ID: 416415A
+Flood Model: Log Pearson III
+Zero Flow Threshold: 0.0
+Gauged Flows: 37
+Censored Flows: 0
+Expected Censored Count (R MGBT): 0
