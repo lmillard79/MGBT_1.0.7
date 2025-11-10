@@ -21,6 +21,11 @@ if R_BIN not in os.environ['PATH']:
 print(f"R_HOME set to: {os.environ['R_HOME']}")
 print(f"R binary path: {R_BIN}")
 
+# Suppress verbose rpy2 logging
+import logging
+logging.getLogger('rpy2').setLevel(logging.ERROR)
+logging.getLogger('rpy2.rinterface_lib.embedded').setLevel(logging.ERROR)
+
 # Test rpy2 connection
 try:
     import rpy2.robjects as ro

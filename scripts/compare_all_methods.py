@@ -1,12 +1,16 @@
 """
-Comprehensive comparison of FLIKE, R MGBT, and Python MGBT censoring.
+Comprehensive comparison of FLIKE, R MGBT, Python MGBT, and C# MGBT censoring.
 
-This script compares censored flow counts from three sources:
+This script compares censored flow counts from four sources:
 1. FLIKE output files (expected/reference)
 2. R MGBT package
 3. Python MGBT package (optimized)
+4. C# MGBT (USACE-RMC Numerics - Fortran port) [if available]
 
 Generates a comprehensive comparison table for all stations.
+
+Note: C# comparison requires the USACE-RMC Numerics library to be compiled
+and accessible. If not available, the script will run without C# comparison.
 """
 
 import sys
@@ -36,6 +40,18 @@ logging.basicConfig(
     format='%(levelname)s: %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Suppress verbose rpy2 logging
+logging.getLogger('rpy2').setLevel(logging.ERROR)
+logging.getLogger('rpy2.rinterface_lib.embedded').setLevel(logging.ERROR)
+
+# Suppress R console output and warnings
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning, module='rpy2')
+
+# Note: The "sh not recognized" warning from rpy2 initialization cannot be easily
+# suppressed as it comes from subprocess before Python can intercept it.
+# This is harmless and can be ignored.
 
 
 def load_flike_data(flike_file: Path) -> Dict:
@@ -178,9 +194,79 @@ def run_r_mgbt(flows: np.ndarray) -> Dict:
         }
 
 
-def compare_station(flike_file: Path, use_r: bool = True) -> Dict:
+def run_csharp_mgbt(flows: np.ndarray) -> Dict:
+    """Run C# MGBT (USACE-RMC Numerics) and return results."""
+    try:
+        import subprocess
+        import json
+        
+        # Check if C# wrapper exists
+        wrapper_path = repo_root / 'scripts' / 'csharp_mgbt_wrapper.exe'
+        if not wrapper_path.exists():
+            return {
+                'success': False,
+                'n_censored': None,
+                'error': 'C# wrapper not found'
+            }
+        
+        # Convert flows to command line arguments
+        flow_args = [str(f) for f in flows]
+        
+        # Run C# wrapper
+        result = subprocess.run(
+            [str(wrapper_path)] + flow_args,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode != 0:
+            return {
+                'success': False,
+                'n_censored': None,
+                'error': f'C# process failed: {result.stderr}'
+            }
+        
+        # Parse JSON output
+        output = json.loads(result.stdout.strip())
+        
+        if 'error' in output:
+            return {
+                'success': False,
+                'n_censored': None,
+                'error': output['error']
+            }
+        
+        return {
+            'success': True,
+            'n_censored': output['klow'],
+            'threshold': output.get('threshold')
+        }
+        
+    except FileNotFoundError:
+        return {
+            'success': False,
+            'n_censored': None,
+            'error': 'C# wrapper not found'
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            'success': False,
+            'n_censored': None,
+            'error': 'C# process timeout'
+        }
+    except Exception as e:
+        logger.error(f"C# MGBT failed: {e}")
+        return {
+            'success': False,
+            'n_censored': None,
+            'error': str(e)
+        }
+
+
+def compare_station(flike_file: Path, use_r: bool = True, use_csharp: bool = True) -> Dict:
     """
-    Compare FLIKE, R MGBT, and Python MGBT for a single station.
+    Compare FLIKE, R MGBT, Python MGBT, and C# MGBT for a single station.
     
     Returns dict with comparison results.
     """
@@ -211,19 +297,40 @@ def compare_station(flike_file: Path, use_r: bool = True) -> Dict:
         else:
             logger.warning(f"R not available: {r_result.get('error', 'Unknown error')}")
     
+    # Run C# MGBT if requested
+    cs_result = None
+    if use_csharp:
+        cs_result = run_csharp_mgbt(flike_data['flows'])
+        if cs_result['success']:
+            logger.info(f"C# censored: {cs_result['n_censored']}")
+            logger.info(f"C# threshold: {cs_result['threshold']}")
+        else:
+            logger.warning(f"C# not available: {cs_result.get('error', 'Unknown error')}")
+    
     # Compare results
     py_matches_flike = (py_result['success'] and 
                         py_result['n_censored'] == flike_data['n_censored_flike'])
     r_matches_flike = (r_result and r_result['success'] and 
                        r_result['n_censored'] == flike_data['n_censored_flike'])
+    cs_matches_flike = (cs_result and cs_result['success'] and 
+                        cs_result['n_censored'] == flike_data['n_censored_flike'])
     py_matches_r = (py_result['success'] and r_result and r_result['success'] and
                     py_result['n_censored'] == r_result['n_censored'])
+    py_matches_cs = (py_result['success'] and cs_result and cs_result['success'] and
+                     py_result['n_censored'] == cs_result['n_censored'])
+    r_matches_cs = (r_result and r_result['success'] and cs_result and cs_result['success'] and
+                    r_result['n_censored'] == cs_result['n_censored'])
     
     logger.info(f"\nComparison:")
     logger.info(f"  Python matches FLIKE: {py_matches_flike}")
     if use_r and r_result:
         logger.info(f"  R matches FLIKE: {r_matches_flike}")
         logger.info(f"  Python matches R: {py_matches_r}")
+    if use_csharp and cs_result:
+        logger.info(f"  C# matches FLIKE: {cs_matches_flike}")
+        logger.info(f"  Python matches C#: {py_matches_cs}")
+        if use_r and r_result:
+            logger.info(f"  R matches C#: {r_matches_cs}")
     
     return {
         'station_id': station_id,
@@ -231,21 +338,32 @@ def compare_station(flike_file: Path, use_r: bool = True) -> Dict:
         'flike_censored': flike_data['n_censored_flike'],
         'python_censored': py_result['n_censored'] if py_result['success'] else None,
         'r_censored': r_result['n_censored'] if (r_result and r_result['success']) else None,
+        'csharp_censored': cs_result['n_censored'] if (cs_result and cs_result['success']) else None,
         'python_threshold': py_result.get('threshold'),
         'r_threshold': r_result.get('threshold') if r_result else None,
+        'csharp_threshold': cs_result.get('threshold') if cs_result else None,
         'py_matches_flike': py_matches_flike,
         'r_matches_flike': r_matches_flike,
+        'cs_matches_flike': cs_matches_flike,
         'py_matches_r': py_matches_r,
+        'py_matches_cs': py_matches_cs,
+        'r_matches_cs': r_matches_cs,
         'python_success': py_result['success'],
-        'r_success': r_result['success'] if r_result else False
+        'r_success': r_result['success'] if r_result else False,
+        'csharp_success': cs_result['success'] if cs_result else False
     }
 
 
-def main(use_r: bool = True):
+def main(use_r: bool = True, use_csharp: bool = True):
     """Run comparison for all stations."""
     logger.info("="*60)
     logger.info("MGBT Comprehensive Comparison")
-    logger.info("Comparing FLIKE, R MGBT, and Python MGBT")
+    methods = ["FLIKE", "Python MGBT"]
+    if use_r:
+        methods.append("R MGBT")
+    if use_csharp:
+        methods.append("C# MGBT (Fortran port)")
+    logger.info(f"Comparing: {', '.join(methods)}")
     logger.info("="*60)
     
     # Find all FLIKE files
@@ -258,7 +376,7 @@ def main(use_r: bool = True):
     results = []
     for flike_file in flike_files:
         try:
-            result = compare_station(flike_file, use_r=use_r)
+            result = compare_station(flike_file, use_r=use_r, use_csharp=use_csharp)
             results.append(result)
         except Exception as e:
             logger.error(f"Failed to process {flike_file.name}: {e}")
@@ -271,15 +389,15 @@ def main(use_r: bool = True):
     output_dir = repo_root / 'data' / 'test_results'
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    csv_file = output_dir / 'mgbt_three_way_comparison.csv'
+    csv_file = output_dir / 'mgbt_four_way_comparison.csv'
     df.to_csv(csv_file, index=False)
     logger.info(f"\nResults saved to: {csv_file}")
     
     # Generate summary report
-    summary_file = output_dir / 'mgbt_three_way_summary.txt'
+    summary_file = output_dir / 'mgbt_four_way_summary.txt'
     with open(summary_file, 'w') as f:
         f.write("="*60 + "\n")
-        f.write("MGBT Three-Way Comparison Summary\n")
+        f.write("MGBT Four-Way Comparison Summary\n")
         f.write("="*60 + "\n\n")
         
         f.write(f"Total stations: {len(df)}\n\n")
@@ -303,6 +421,16 @@ def main(use_r: bool = True):
                 f.write(f"  Matches FLIKE: {r_match}/{r_success} ({r_match/r_success*100:.1f}%)\n")
             f.write("\n")
         
+        # C# statistics
+        if use_csharp:
+            cs_success = df['csharp_success'].sum()
+            f.write(f"C# MGBT (Fortran port):\n")
+            f.write(f"  Successful: {cs_success}/{len(df)}\n")
+            if cs_success > 0:
+                cs_match = df['cs_matches_flike'].sum()
+                f.write(f"  Matches FLIKE: {cs_match}/{cs_success} ({cs_match/cs_success*100:.1f}%)\n")
+            f.write("\n")
+        
         # Discrepancies
         f.write("Stations with discrepancies:\n")
         f.write("-"*60 + "\n")
@@ -316,6 +444,8 @@ def main(use_r: bool = True):
                 f.write(f"  Python: {row['python_censored']}\n")
                 if use_r and row['r_success']:
                     f.write(f"  R: {row['r_censored']}\n")
+                if use_csharp and row['csharp_success']:
+                    f.write(f"  C#: {row['csharp_censored']}\n")
         else:
             f.write("  None - all Python results match FLIKE!\n")
         
@@ -326,22 +456,31 @@ def main(use_r: bool = True):
         f.write("-"*60 + "\n")
         f.write(f"{'Station':<10} {'Flows':<6} {'FLIKE':<6} {'Python':<6}")
         if use_r:
-            f.write(f" {'R':<6} {'Py=FL':<6} {'R=FL':<6} {'Py=R':<6}")
-        else:
-            f.write(f" {'Py=FL':<6}")
+            f.write(f" {'R':<6}")
+        if use_csharp:
+            f.write(f" {'C#':<6}")
+        f.write(f" {'Py=FL':<6}")
+        if use_r:
+            f.write(f" {'R=FL':<6} {'Py=R':<6}")
+        if use_csharp:
+            f.write(f" {'CS=FL':<6} {'Py=CS':<6}")
         f.write("\n")
-        f.write("-"*60 + "\n")
+        f.write("-"*80 + "\n")
         
         for _, row in df.iterrows():
             f.write(f"{row['station_id']:<10} {row['n_flows']:<6} "
                    f"{row['flike_censored']:<6} {row['python_censored'] or 'N/A':<6}")
             if use_r:
-                f.write(f" {row['r_censored'] or 'N/A':<6} "
-                       f"{'Y' if row['py_matches_flike'] else 'N':<6} "
-                       f"{'Y' if row['r_matches_flike'] else 'N':<6} "
+                f.write(f" {row['r_censored'] or 'N/A':<6}")
+            if use_csharp:
+                f.write(f" {row['csharp_censored'] or 'N/A':<6}")
+            f.write(f" {'Y' if row['py_matches_flike'] else 'N':<6}")
+            if use_r:
+                f.write(f" {'Y' if row['r_matches_flike'] else 'N':<6} "
                        f"{'Y' if row['py_matches_r'] else 'N':<6}")
-            else:
-                f.write(f" {'Y' if row['py_matches_flike'] else 'N':<6}")
+            if use_csharp:
+                f.write(f" {'Y' if row['cs_matches_flike'] else 'N':<6} "
+                       f"{'Y' if row['py_matches_cs'] else 'N':<6}")
             f.write("\n")
     
     logger.info(f"Summary saved to: {summary_file}")
@@ -357,6 +496,10 @@ def main(use_r: bool = True):
         print(f"R successful: {df['r_success'].sum()}/{len(df)}")
         print(f"R matches FLIKE: {df['r_matches_flike'].sum()}/{len(df)}")
         print(f"Python matches R: {df['py_matches_r'].sum()}/{len(df)}")
+    if use_csharp:
+        print(f"C# successful: {df['csharp_success'].sum()}/{len(df)}")
+        print(f"C# matches FLIKE: {df['cs_matches_flike'].sum()}/{len(df)}")
+        print(f"Python matches C#: {df['py_matches_cs'].sum()}/{len(df)}")
     print("="*60)
 
 
@@ -364,14 +507,20 @@ if __name__ == '__main__':
     import argparse
     
     parser = argparse.ArgumentParser(
-        description='Compare FLIKE, R MGBT, and Python MGBT censoring'
+        description='Compare FLIKE, R MGBT, Python MGBT, and C# MGBT censoring'
     )
     parser.add_argument(
         '--no-r',
         dest='use_r',
         action='store_false',
-        help='Skip R comparison (Python vs FLIKE only)'
+        help='Skip R comparison'
+    )
+    parser.add_argument(
+        '--no-csharp',
+        dest='use_csharp',
+        action='store_false',
+        help='Skip C# comparison'
     )
     
     args = parser.parse_args()
-    main(use_r=args.use_r)
+    main(use_r=args.use_r, use_csharp=args.use_csharp)

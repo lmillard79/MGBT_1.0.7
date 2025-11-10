@@ -14,6 +14,11 @@ if R_BIN not in os.environ['PATH']:
 
 print("Testing R MGBT with modern rpy2 syntax...")
 
+# Suppress verbose rpy2 logging
+import logging
+logging.getLogger('rpy2').setLevel(logging.ERROR)
+logging.getLogger('rpy2.rinterface_lib.embedded').setLevel(logging.ERROR)
+
 try:
     import rpy2.robjects as ro
     from rpy2.robjects import numpy2ri
